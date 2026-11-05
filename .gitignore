@@ -1,0 +1,26 @@
+# 构建产物
+build/
+dist/
+*.elf
+*.nro
+*.nacp
+romfs.img
+switch-ha.nro
+switch-ha.elf
+
+# 运行时日志 / 调试数据
+applog.txt
+*.log
+data/
+
+# 反编译分析工作区（本地资料，不公开）
+analysis/
+
+# 字体完整版备份（16MB，在仓库根目录；别放进 romfs/，否则会被打进 NRO）
+main.otf.full
+
+# macOS
+.DS_Store
+
+# 桌面预览编译产物
+desktop/preview
