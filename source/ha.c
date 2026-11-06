@@ -188,9 +188,11 @@ int ha_load(void)
                (int)strlen(g_base), (int)strlen(g_access));
         return 0;
     }
-    /* 启动一律先试内网。上次可能是从外面回来才记下的「走外网」，
-     * 一直照抄会让人在家也绕一趟公网；而内网不通现在只多花 1 秒。 */
-    g_slot = (!g_base[0] && g_alt[0]) ? 1 : 0;
+    /* 照抄上次成功走的线路（use=）：上次从外网同步成功，这次直接走
+     * 外网，不再每次启动都先撞一遍内网超时；反过来同理。
+     * 真走不通时 api() 会自动切换并把新线路记回配置。
+     * 唯一例外：只填了外网地址时固定走外网。 */
+    if (!g_base[0] && g_alt[0]) g_slot = 1;
     g_ready = 1;
     apply_ip_override();
     applog("ha: loaded base=%s alt=%s use=%d user=%s ip=%s",

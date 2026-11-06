@@ -9,7 +9,7 @@ LIBS="-F$V -framework SDL2 -framework SDL2_ttf -Wl,-rpath,@executable_path/../$V
 
 cc $CFLAGS \
    source/gfx.c source/ui.c source/applog.c source/json.c \
-   source/net.c source/update.c \
+   source/net.c source/update.c source/wifi.c \
    desktop/mock_ha.c desktop/cam_stub.c desktop/preview.c \
    -o desktop/preview $LIBS -lcurl
 

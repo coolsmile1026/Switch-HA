@@ -303,12 +303,16 @@ int main(int argc, char **argv)
     ui_set_keyboard(kb_input);
 
     static App app;
+    /* 先读配置、再初始化 UI：主题（theme=1）存在配置文件里，
+     * ui_init 要在 ha_load 之后才能把上次的深浅色应用到首帧，
+     * 否则每次打开都是默认浅色。 */
+    int have_cfg = ha_load();
     ui_init(&app);
 
     /* 有缓存就直接进：启动不联网、不同步——设备增减是低频事件，
      * 每次开应用都拉一遍只会让开场卡一下。要看最新就按 X，
      * 换服务器地址时也会自动同步一次。 */
-    if (ha_load()) {
+    if (have_cfg) {
         snprintf(app.addr, sizeof app.addr, "%s", ha_base1());
         if (ha_alt()[0]) snprintf(app.alt, sizeof app.alt, "%s", ha_alt());
         if (ha_ip()[0]) snprintf(app.ip, sizeof app.ip, "%s", ha_ip());
@@ -341,7 +345,6 @@ int main(int argc, char **argv)
     int frames = 0;
     Uint64 frame_t0 = SDL_GetTicks64();
     int last_screen = -1;
-    Uint64 last_input = SDL_GetTicks64();
 
     while (running && appletMainLoop()) {
         if (app.screen != last_screen) {
@@ -361,7 +364,6 @@ int main(int argc, char **argv)
 
         map_pad(&app, down, held, &running);
         pad_repeat(&app, held);
-        if (down) last_input = SDL_GetTicks64();
         if (app.want_quit) { applog("quit requested from UI"); running = 0; }
 
         /* 退出前给一屏反馈：
@@ -377,12 +379,10 @@ int main(int argc, char **argv)
         while (running && SDL_PollEvent(&ev)) {
             if (ev.type == SDL_QUIT) running = 0;
             else if (ev.type == SDL_FINGERDOWN) {
-                last_input = SDL_GetTicks64();
                 ui_tap(&app, (int)(ev.tfinger.x * (float)UI_W),
                               (int)(ev.tfinger.y * (float)UI_H));
             } else if (ev.type == SDL_MOUSEBUTTONDOWN &&
                        ev.button.which != SDL_TOUCH_MOUSEID) {
-                last_input = SDL_GetTicks64();
                 ui_tap(&app, ev.button.x, ev.button.y);
             }
         }

@@ -3,12 +3,14 @@
 #include "applog.h"
 #include "json.h"
 #include "update.h"
+#include "wifi.h"
 
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <time.h>
 
 /* ------------------------------------------------------------------
  * 界面依据 home-assistant/android 2026.11.1 官方 APK 反编译结果重建，
@@ -414,11 +416,31 @@ static void draw_topbar(App *a, const char *title, const char *sub)
     gfx_round_border(rf, 22, C_LINE, 1, C_CARD);
     gfx_icon(IC_REFRESH, (SDL_Rect){ rf.x + 10, rf.y + 10, 24, 24 }, C_BLUE_D);
 
+    /* WiFi 链路状态：放在「已连接」和刷新按钮之间。
+     * nifm 给的是主机的网络出口（WiFi 信号格 / 有线），和右边
+     * 「已连接」的 HA 可达状态是两层东西，分开看更清楚。 */
+    SDL_Rect wf = { rf.x - 72, 30, 60, 36 };
+    int bars = 0;
+    int link = wifi_link(&bars);
+    gfx_round(wf, 18, link ? C_CARD : C_ERR_SOFT);
+    gfx_round_border(wf, 18, C_LINE, 1, link ? C_CARD : C_ERR_SOFT);
+    if (link == 2) {
+        gfx_text_box(F_TINY, "有线", wf, link ? C_OK : C_ERR);
+    } else {
+        gfx_icon(IC_WIFI, (SDL_Rect){ wf.x + 8, wf.y + 9, 18, 18 },
+                 link ? C_OK : C_ERR);
+        static const int bh[3] = { 6, 10, 14 };
+        for (int i = 0; i < 3; i++) {
+            SDL_Rect b = { wf.x + 32 + i * 6, wf.y + 27 - bh[i], 4, bh[i] };
+            gfx_fill(b, (link && bars >= i + 1) ? C_OK : C_BORDER);
+        }
+    }
+
     int st = ha_ready();
     const char *label = st ? "已连接" : "未连接";
     SDL_Color dot = st ? C_OK : C_ERR;
     int tw = gfx_text_w(F_TINY, label);
-    SDL_Rect pill = { rf.x - tw - 64, 30, tw + 48, 36 };
+    SDL_Rect pill = { wf.x - tw - 64, 30, tw + 48, 36 };
     gfx_round(pill, 18, st ? C_OK_SOFT : C_ERR_SOFT);
     gfx_circle(pill.x + 18, pill.y + 18, 5, dot);
     gfx_text(F_TINY, label, pill.x + 30, pill.y + 10, dot);
@@ -1280,6 +1302,18 @@ static void ui_draw_screen(App *a)
         gfx_round(pill, 17, C_CARD);
         gfx_round_border(pill, 17, C_LINE, 1, C_CARD);
         gfx_text_box(F_TINY, hint, pill, C_TEXT3);
+
+        /* 右下角本机时间：和按键提示同一行，右对齐。
+         * hbmenu 会把主机时区写进 TZ；没给就按 UTC+8 兜底。 */
+        {
+            time_t t = time(NULL);
+            struct tm tmv;
+            if (getenv("TZ")) localtime_r(&t, &tmv);
+            else { t += 8 * 3600; gmtime_r(&t, &tmv); }
+            char ts[8];
+            snprintf(ts, sizeof ts, "%02d:%02d", tmv.tm_hour, tmv.tm_min);
+            gfx_text_right(F_SMALL, ts, UI_W - PAD, UI_H - 42, C_TEXT3);
+        }
     }
 
     /* HA 规范要求用 snackbar，不用 toast：深色圆角条 + 白字 */
